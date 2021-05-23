@@ -6,7 +6,9 @@ import (
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
+
 	"github.com/gofiber/fiber/v2"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type Claims struct {
@@ -27,8 +29,6 @@ func GenerateAccessToken(id uint) (string,error){
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-
-
 
 	signedToken, err := token.SignedString(jwtKey)
 
@@ -101,3 +101,7 @@ func VerifyToken(c *fiber.Ctx) error {
 	return c.Next()
 }
 
+func CheckPasswordHash(password, hash string) bool {
+    err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
+    return err == nil
+}
