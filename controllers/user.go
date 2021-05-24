@@ -143,3 +143,64 @@ func VerifyEmail(c *fiber.Ctx) error {
   frontend_url := os.Getenv("FRONTEND_URL")
 	return c.Redirect(frontend_url)
 }
+
+func Login(c *fiber.Ctx) error  {
+	
+	type LoginInput struct {
+		Email string `json:"email"`
+		Password string `json:"password"`
+	}
+
+	input := new(LoginInput)
+
+	err := c.BodyParser(input)
+
+	if err !=nil{
+		return c.JSON(fiber.Map{
+			"error":true,
+			"message":"Please make sure you are sending valid inputs",
+		})
+	}
+
+	//check if the user exists
+	user := new(models.User)
+
+	res := models.DB.Where(&models.User{Email: input.Email}).First(&user)
+
+	if res.RowsAffected <=0{
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error":true,
+			"message":"Invalid credentials",
+		})
+	}
+
+	//compare passwords
+	match := helpers.CheckPasswordHash(input.Password,user.Password)
+	if !match{
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error":true,
+			"meassage":"Invalid credentials",
+		})
+	}
+
+	//Check if the user's email has been verified
+	if !user.Verified{
+		return c.Status(fiber.StatusExpectationFailed).JSON(fiber.Map{
+			"error":true,
+			"meassage":"Email not verified. Please Check the link the mail sent to you and verify your email",
+		})
+	}
+
+	token, err := helpers.GenerateAccessToken(user.ID)
+	if err !=nil{
+			return c.JSON(fiber.Map{
+			"error":true,
+			"message":err.Error(),
+		})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"success":true,
+		"access_token": token,
+	})
+}
