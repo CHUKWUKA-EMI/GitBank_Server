@@ -25,7 +25,7 @@ var jwtKey = []byte(os.Getenv("JWT_SECRET"))
 func GenerateAccessToken(id uint, name string, email string, role string) (string, error) {
 	token := jwt.New(jwt.SigningMethodHS256)
 	if loadErr != nil {
-		log.Fatal("Error loading .env file")
+		log.Fatal(loadErr.Error())
 	}
 	// Set claims
 	claims := token.Claims.(jwt.MapClaims)
