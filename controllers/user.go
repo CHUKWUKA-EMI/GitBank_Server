@@ -2,6 +2,7 @@ package controllers
 
 import (
 	// "log"
+	"fmt"
 	"os"
 	"time"
 
@@ -9,81 +10,91 @@ import (
 	"github.com/chukwuka-emi/models"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gofiber/fiber/v2"
+	"github.com/joho/godotenv"
 	"golang.org/x/crypto/bcrypt"
 	// "gorm.io/gorm"
 )
 
 type Claims struct {
- jwt.StandardClaims
- ID uint `gorm:"primaryKey"`
- }
+	jwt.StandardClaims
+	ID uint `gorm:"primaryKey"`
+}
+
+var loadErr = godotenv.Load()
 
 var jwtKey = []byte(os.Getenv("JWT_SECRET"))
+var admin_email = []byte(os.Getenv("ADMIN_EMAIL"))
 
-func Register(c *fiber.Ctx) error{
-  user := new(models.User)
-
+func Register(c *fiber.Ctx) error {
+	user := new(models.User)
+	if loadErr != nil {
+		fmt.Println(loadErr.Error())
+	}
 	err := c.BodyParser(user)
-	if err != nil{
+	if err != nil {
 		return c.JSON(fiber.Map{
-			"error": true,
-			"message":"Invalid request. Please review your inputs",
+			"error":   true,
+			"message": "Invalid request. Please review your inputs",
 		})
 	}
 
 	errors := helpers.ValidateRegister(user)
-	if errors.Err{
+	if errors.Err {
 		return c.JSON(errors)
 	}
 
 	existingEmail := models.DB.Where(&models.User{Email: user.Email}).First(new(models.User))
 	if existingEmail.RowsAffected > 0 {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": true,
-			"message":"Email already exist",
+			"error":   true,
+			"message": "Email already exist",
 		})
 	}
 
 	existingNames := models.DB.Where(&models.User{FirstName: user.FirstName, LastName: user.LastName}).First(new(models.User))
 	if existingNames.RowsAffected > 0 {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": true,
-			"message":"Names already taken",
+			"error":   true,
+			"message": "Names already taken",
 		})
 	}
 
 	password := []byte(user.Password)
 
-	hashedPassword, err := bcrypt.GenerateFromPassword(password,14)
-	if err !=nil{
+	hashedPassword, err := bcrypt.GenerateFromPassword(password, 14)
+	if err != nil {
 		return c.JSON(fiber.Map{
-			"error":true,
-			"message":err.Error(),
+			"error":   true,
+			"message": err.Error(),
 		})
 	}
 
 	user.Password = string(hashedPassword)
 	user.Verified = false
+	if user.Email == string(admin_email) {
+		user.Role = "admin"
+	} else {
+		user.Role = "user"
+	}
 
-	if err := models.DB.Create(&user).Error;err !=nil{
+	if err := models.DB.Create(&user).Error; err != nil {
 		return c.JSON(fiber.Map{
-			"error":true,
-			"message":"Something went wrong. Please try again later",
+			"error":   true,
+			"message": "Something went wrong. Please try again later",
 		})
 	}
-  
+
 	token, err := helpers.GenerateVerificationToken(user.ID)
-	if err !=nil{
+	if err != nil {
 		return c.JSON(fiber.Map{
-			"error":true,
-			"message":err.Error(),
+			"error":   true,
+			"message": err.Error(),
 		})
 	}
 
-  
 	backend_url := os.Getenv("BACKEND_URL")
-	url := backend_url+"/api/v1/user/verify/"+token
-	helpers.SendMail(user.Email, user.FirstName,url)
+	url := backend_url + "/api/v1/user/verify/" + token
+	helpers.SendMail(user.Email, user.FirstName, url)
 
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"access_token": token,
@@ -93,61 +104,61 @@ func Register(c *fiber.Ctx) error{
 func VerifyEmail(c *fiber.Ctx) error {
 	var user models.User
 	paramToken := c.Params("token")
-	if len(paramToken)==0{
+	if len(paramToken) == 0 {
 		c.Status(fiber.StatusNoContent).JSON(fiber.Map{
-			"error":true,
-			"message":"No token provided",
+			"error":   true,
+			"message": "No token provided",
 		})
 	}
 
- 	tokenString, err := jwt.ParseWithClaims(paramToken, &Claims{}, func(token *jwt.Token)(interface{}, error){
+	tokenString, err := jwt.ParseWithClaims(paramToken, &Claims{}, func(token *jwt.Token) (interface{}, error) {
 		return jwtKey, nil
 	})
 
-	if err !=nil{
-		return  err
+	if err != nil {
+		return err
 	}
-	
+
 	claims, ok := tokenString.Claims.(*Claims)
-	if !ok && !tokenString.Valid{
+	if !ok && !tokenString.Valid {
 		return c.Status(fiber.StatusNotAcceptable).JSON(fiber.Map{
-			"error": true,
-			"message":"Couldn't parse claims",
+			"error":   true,
+			"message": "Couldn't parse claims",
 		})
 	}
 
-	if claims.ExpiresAt < time.Now().Unix(){
+	if claims.ExpiresAt < time.Now().Unix() {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"error": true,
-			"message":"Token has expired",
+			"error":   true,
+			"message": "Token has expired",
 		})
 	}
- 
-  e := models.DB.Where("id=?", claims.ID).First(&user).Error
-	if e !=nil{
+
+	e := models.DB.Where("id=?", claims.ID).First(&user).Error
+	if e != nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-			"error":true,
-			"hint":"Error associated with finding user",
-			"message":e,
+			"error":   true,
+			"hint":    "Error associated with finding user",
+			"message": e,
 		})
 	}
 
 	updateErr := models.DB.Model(&user).Updates(models.User{Verified: true}).Error
-	if updateErr !=nil{
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error":true,
-				"hint":"Error associated with updating user",
-			"message":updateErr,
+	if updateErr != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error":   true,
+			"hint":    "Error associated with updating user",
+			"message": updateErr,
 		})
 	}
-  frontend_url := os.Getenv("FRONTEND_URL")
+	frontend_url := os.Getenv("FRONTEND_URL")
 	return c.Redirect(frontend_url)
 }
 
-func Login(c *fiber.Ctx) error  {
-	
+func Login(c *fiber.Ctx) error {
+
 	type LoginInput struct {
-		Email string `json:"email"`
+		Email    string `json:"email"`
 		Password string `json:"password"`
 	}
 
@@ -155,10 +166,10 @@ func Login(c *fiber.Ctx) error  {
 
 	err := c.BodyParser(input)
 
-	if err !=nil{
+	if err != nil {
 		return c.JSON(fiber.Map{
-			"error":true,
-			"message":"Please make sure you are sending valid inputs",
+			"error":   true,
+			"message": "Please make sure you are sending valid inputs",
 		})
 	}
 
@@ -167,40 +178,40 @@ func Login(c *fiber.Ctx) error  {
 
 	res := models.DB.Where(&models.User{Email: input.Email}).First(&user)
 
-	if res.RowsAffected <=0{
+	if res.RowsAffected <= 0 {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error":true,
-			"message":"Invalid credentials",
+			"error":   true,
+			"message": "Invalid credentials",
 		})
 	}
 
 	//compare passwords
-	match := helpers.CheckPasswordHash(input.Password,user.Password)
-	if !match{
+	match := helpers.CheckPasswordHash(input.Password, user.Password)
+	if !match {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error":true,
-			"meassage":"Invalid credentials",
+			"error":    true,
+			"meassage": "Invalid credentials",
 		})
 	}
 
 	//Check if the user's email has been verified
-	if !user.Verified{
+	if !user.Verified {
 		return c.Status(fiber.StatusExpectationFailed).JSON(fiber.Map{
-			"error":true,
-			"meassage":"Email not verified. Please Check the link the mail sent to you and verify your email",
+			"error":    true,
+			"meassage": "Email not verified. Please Check the link in the mail sent to you and verify your email",
 		})
 	}
 
-	token, err := helpers.GenerateAccessToken(user.ID)
-	if err !=nil{
-			return c.JSON(fiber.Map{
-			"error":true,
-			"message":err.Error(),
+	token, err := helpers.GenerateAccessToken(user.ID, user.FirstName+" "+user.LastName, user.Email, user.Role)
+	if err != nil {
+		return c.JSON(fiber.Map{
+			"error":   true,
+			"message": err.Error(),
 		})
 	}
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"success":true,
+		"success":      true,
 		"access_token": token,
 	})
 }

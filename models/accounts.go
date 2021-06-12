@@ -4,24 +4,21 @@ import (
 	"gorm.io/gorm"
 )
 
-type UserAccount struct{
+type UserAccount struct {
 	gorm.Model
-	AccountNumber string `json:"account_number"`
-	BankNumber string `json:"bank_number"`
-	GivenName string `json:"given_name"`
-	FamilyName string `json:"family_name"`
-	DateOfBirth string `json:"date_of_birth"`
-	Photo string `json:"photo"`
-  NIN string `json:"nin"`
-  ContactNumber1 string `json:"contact_number1"`
-  ContactNumber2 string `json:"contact_number2"`
-  EmailAddress string `json:"email_address"`
-  AddressLine1 string `json:"addressline1"`
-  AddressLine2 string `json:"addressline2"`
-  AddressLine3 string `json:"addressline3"`
-  PostalCode string `json:"postalcode"`
-	AccountBalance float64 `json:"account_balance"`
-	Overdraft float64 `json:"overdraft"`
+	AccountNumber    string  `json:"account_number"`
+	BankNumber       string  `json:"bank_number"`
+	GivenName        string  `json:"given_name"`
+	FamilyName       string  `json:"family_name"`
+	EmailAddress     string  `json:"email_address"`
+	DateOfBirth      string  `json:"date_of_birth"`
+	Photo            string  `json:"photo"`
+	NIN              string  `json:"nin"`
+	ContactNumber    string  `json:"contact_number"`
+	AddressLine      string  `json:"addressline"`
+	AccountBalance   float64 `json:"account_balance"`
+	Overdraft        float64 `json:"overdraft"`
 	AvailableBalance float64 `json:"available_balance"`
-	UserID uint
+	AccountType      string  `json:"account_type"`
+	UserID           string  `json:"user_id"`
 }
