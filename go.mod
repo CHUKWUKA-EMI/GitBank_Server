@@ -1,6 +1,6 @@
 module github.com/chukwuka-emi
 
-// +heroku goVersion go1.16
+// +heroku goVersion go1.16.4
 go 1.16
 
 require (

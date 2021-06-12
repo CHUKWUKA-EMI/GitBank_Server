@@ -39,7 +39,7 @@ func main() {
 	//secured routes
 	routes.SecuredRoutes(app)
 
-	db_url := os.Getenv("DB_URL")
+	db_url := os.Getenv("DATABASE_URL")
 	models.ConnectDB(db_url)
 
 	app.Listen(":3000")
