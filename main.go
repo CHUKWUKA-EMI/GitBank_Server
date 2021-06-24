@@ -24,6 +24,11 @@ func main() {
 	app.Use(cors.New())
 
 	//free routes
+	app.Get("/", func(c *fiber.Ctx) error {
+		return c.Status(fiber.StatusOK).JSON(fiber.Map{
+			"message": "WELCOME TO GITBANK SERVER...",
+		})
+	})
 	routes.AuthRoutes(app)
 
 	//Secure Routes with JWT Auth middleware
